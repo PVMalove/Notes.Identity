@@ -1,44 +1,72 @@
-var builder = WebApplication.CreateBuilder(args);
+using IdentityServer4.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Notes.Identity;
+using Notes.Identity.Data;
+using Notes.Identity.Model;
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-var app = builder.Build();
+IServiceCollection services = builder.Services;
+ConfigurationManager configuration = builder.Configuration;
 
-// Configure the HTTP request pipeline.
+string? connectionString = configuration.GetConnectionString("DbConnection");
+services.AddDbContext<AuthDbContext>(options => options.UseSqlite(connectionString));
+
+services.AddIdentity<AppUser, IdentityRole>(config =>
+{
+    config.Password.RequiredLength = 4;
+    config.Password.RequireDigit = false;
+    config.Password.RequireNonAlphanumeric = false;
+    config.Password.RequireUppercase = false;
+})
+    .AddEntityFrameworkStores<AuthDbContext>()
+    .AddDefaultTokenProviders();
+
+services.AddIdentityServer()
+    .AddAspNetIdentity<AppUser>()
+    .AddInMemoryApiResources(Configuration.ApiResources)
+    .AddInMemoryIdentityResources(Configuration.IdentityResources)
+    .AddInMemoryApiScopes(Configuration.ApiScopes)
+    .AddInMemoryClients(Configuration.Clients)
+    .AddDeveloperSigningCredential();
+
+services.ConfigureApplicationCookie(config =>
+{
+    config.Cookie.Name = "Notes.Identity.Cookie";
+    config.LoginPath = "/Auth/Login";
+    config.LogoutPath = "/Auth/Logout";
+});
+
+WebApplication app = builder.Build();
+
+using (IServiceScope scope = app.Services.CreateScope())
+{
+    IServiceProvider servicesProvider = scope.ServiceProvider;
+    try
+    {
+        AuthDbContext context = servicesProvider.GetRequiredService<AuthDbContext>();
+        DbInitializer.Initialize(context);
+    }
+    catch (Exception err)
+    {
+        ILogger<Program> logger = servicesProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(err, "An error occurred while initializing the database");
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseDeveloperExceptionPage();
+}
+else
+{
+    app.UseExceptionHandler("/Home/Error");
+    app.UseHsts();
 }
 
+app.UseIdentityServer();
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-    {
-        var forecast = Enumerable.Range(1, 5).Select(index =>
-                new WeatherForecast
-                (
-                    DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                    Random.Shared.Next(-20, 55),
-                    summaries[Random.Shared.Next(summaries.Length)]
-                ))
-            .ToArray();
-        return forecast;
-    })
-    .WithName("GetWeatherForecast")
-    .WithOpenApi();
-
+app.MapGet("/", () => "Hello World!");
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

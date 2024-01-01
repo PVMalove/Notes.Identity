@@ -1,6 +1,0 @@
-@Notes.Identity_HostAddress = http://localhost:5069
-
-GET {{Notes.Identity_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
