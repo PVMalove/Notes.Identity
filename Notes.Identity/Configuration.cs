@@ -39,9 +39,9 @@ public static class Configuration
                 AllowedGrantTypes = GrantTypes.Code,
                 RequireClientSecret = false,
                 RequirePkce = true,
-                RedirectUris = { "https://.../signin-oidc" },
-                AllowedCorsOrigins = { "https://..." },
-                PostLogoutRedirectUris = { "https://.../signout-oidc" },
+                RedirectUris = { "http://localhost:3000/signin-oidc" },
+                AllowedCorsOrigins = { "http://localhost:3000" },
+                PostLogoutRedirectUris = { "https://localhost:3000/signout-oidc" },
                 AllowedScopes =
                 {
                     IdentityServerConstants.StandardScopes.OpenId,
@@ -49,7 +49,6 @@ public static class Configuration
                     "NotesWebApi"
                 },
                 AllowAccessTokensViaBrowser = true
-                
             }
         };
 }

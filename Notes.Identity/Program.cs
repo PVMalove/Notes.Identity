@@ -11,7 +11,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 IServiceCollection services = builder.Services;
 ConfigurationManager configuration = builder.Configuration;
 
-string? connectionString = configuration.GetConnectionString("DbConnection");
+string? connectionString = configuration.GetSection("DbConnection").Value;
 services.AddDbContext<AuthDbContext>(options => options.UseSqlite(connectionString));
 
 services.AddIdentity<AppUser, IdentityRole>(config =>
@@ -24,14 +24,6 @@ services.AddIdentity<AppUser, IdentityRole>(config =>
     .AddEntityFrameworkStores<AuthDbContext>()
     .AddDefaultTokenProviders();
 
-services.AddIdentityServer()
-    .AddAspNetIdentity<AppUser>()
-    .AddInMemoryApiResources(Configuration.ApiResources)
-    .AddInMemoryIdentityResources(Configuration.IdentityResources)
-    .AddInMemoryApiScopes(Configuration.ApiScopes)
-    .AddInMemoryClients(Configuration.Clients)
-    .AddDeveloperSigningCredential();
-
 services.ConfigureApplicationCookie(config =>
 {
     config.Cookie.Name = "Notes.Identity.Cookie";
@@ -39,6 +31,14 @@ services.ConfigureApplicationCookie(config =>
     config.LogoutPath = "/Auth/Logout";
 });
 
+services.AddIdentityServer()
+    .AddAspNetIdentity<AppUser>()
+    .AddInMemoryApiResources(Configuration.ApiResources)
+    .AddInMemoryIdentityResources(Configuration.IdentityResources)
+    .AddInMemoryApiScopes(Configuration.ApiScopes)
+    .AddInMemoryClients(Configuration.Clients)
+    .AddDeveloperSigningCredential();
+               
 services.AddControllersWithViews();
 
 WebApplication app = builder.Build();
@@ -58,6 +58,12 @@ using (IServiceScope scope = app.Services.CreateScope())
     }
 }
 
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(Path.Combine(app.Environment.ContentRootPath, "Styles")),
+    RequestPath = "/styles"
+});           
+
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
@@ -68,14 +74,10 @@ else
     app.UseHsts();
 }
 
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(Path.Combine(app.Environment.ContentRootPath, "Styles")),
-    RequestPath = "/styles"
-});
-
+app.UseRouting();
 app.UseIdentityServer();
 app.UseHttpsRedirection();
 
-app.MapDefaultControllerRoute();
+app.UseEndpoints(endpoints => endpoints.MapDefaultControllerRoute());
+
 app.Run();
